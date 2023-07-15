@@ -4,6 +4,9 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\User;
+use App\Models\Role;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 
 class CreateUserCommand extends Command
 {
@@ -26,11 +29,11 @@ class CreateUserCommand extends Command
      */
     public function handle()
     {
-        $user['name'] = $this-ask('Name of the new user');
-        $user['email'] = $this-ask('Email of the new user');
-        $user['password'] = $this-secret('Password of the new user');
+        $user['name'] = $this->ask('Name of the new user');
+        $user['email'] = $this->ask('Email of the new user');
+        $user['password'] = Hash::make($this->secret('Password of the new user'));
 
-        $roleName = $this-choice('Role of the new user', ['admin', 'editor'], 1);
+        $roleName = $this->choice('Role of the new user', ['admin', 'editor'], 1);
 
         $role = Role::where('name', $roleName)->first();
 
@@ -40,7 +43,10 @@ class CreateUserCommand extends Command
             return -1;
         }
 
-        User::create($user);
+        DB::transaction(function() use ($user, $role) {
+            $newUser = User::create($user);
+            $newUser->roles()->attach($role->id);
+        });
 
         $this->info('User '.$user['email'].' created successfullly');
     }
